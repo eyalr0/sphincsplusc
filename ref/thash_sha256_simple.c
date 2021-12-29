@@ -5,6 +5,7 @@
 #include "address.h"
 #include "params.h"
 #include "sha256.h"
+#include "utils.h"
 
 /**
  * Takes an array of inblocks concatenated arrays of SPX_N bytes.
@@ -12,7 +13,7 @@
 void thash(unsigned char *out, const unsigned char *in, unsigned int inblocks,
            const spx_ctx *ctx, uint32_t addr[8])
 {
-    unsigned char buf[SPX_SHA256_ADDR_BYTES + inblocks*SPX_N];
+    SPX_VLA(uint8_t, buf, SPX_SHA256_ADDR_BYTES + inblocks*SPX_N);
     unsigned char outbuf[SPX_SHA256_OUTPUT_BYTES];
     uint8_t sha2_state[40];
 
