@@ -5,16 +5,21 @@ import os
 import sys
 from subprocess import DEVNULL, run
 
-implementations = [
-                   ('ref', ['shake', 'sha2', 'haraka']),
-                   ('haraka-aesni', ['haraka']),
-                   ('shake-avx2', ['shake']),
-                   ('sha2-avx2', ['sha2']),
-                   ]
+# implementations = [
+#                    ('ref', ['shake', 'sha2', 'haraka']),
+#                    ('haraka-aesni', ['haraka']),
+#                    ('shake-avx2', ['shake']),
+#                    ('sha2-avx2', ['sha2']),
+#                    ]
+
+#Currently we only support shake
+implementations = [('ref', ['shake'])]
 
 options = ["f", "s"]
 sizes = [128, 192, 256]
 thashes = ['robust', 'simple']
+#We want to benchmark the robust version
+thashes = ['robust']
 
 for impl, fns in implementations:
     params = os.path.join(impl, "params.h")

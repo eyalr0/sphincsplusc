@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <limits.h>
 
 #include "../thash.h"
 #include "../api.h"
@@ -13,7 +14,7 @@
 #include "cycles.h"
 
 #define SPX_MLEN 32
-#define NTESTS 10
+#define NTESTS 100
 
 static void wots_gen_pkx1(unsigned char *pk, const spx_ctx* ctx,
                 uint32_t addr[8]);
@@ -83,6 +84,16 @@ static void display_result(double result, unsigned long long *l, size_t llen, un
     printf(" cycles\n");
 }
 
+static void save_result(FILE *fp, const char * preamble, unsigned long long *l, size_t llen)
+{
+    size_t i;
+
+    fprintf(fp, "%s", preamble);
+    for(i = 0; i < llen; i++)
+        fprintf(fp, " %llu ", l[i]);
+    fprintf(fp, "\n");
+}
+
 #define MEASURE_GENERIC(TEXT, MUL, FNCALL, CORR)\
     printf(TEXT);\
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);\
@@ -133,32 +144,74 @@ int main()
     unsigned long long t[NTESTS+1];
     struct timespec start, stop;
     double result;
-    int i;
+    unsigned int i;
+    unsigned int fors_bits = 0;
 
+    char filename[100];
+    FILE *fp;
+#define str(s) #s
+#define xstr(s) str(s)
+
+    printf("%s\n", xstr(PARAMS));
     randombytes(m, SPX_MLEN);
     randombytes(addr, SPX_ADDR_BYTES);
-
-    printf("Parameters: n = %d, h = %d, d = %d, b = %d, k = %d, w = %d\n",
+    #ifdef SPX_FORS_ZERO_LAST_BITS
+        fors_bits = SPX_FORS_ZERO_LAST_BITS;
+    #endif
+    printf("Parameters: n = %d, h = %d, d = %d, b = %d, k = %d, w = %d, t' = %d, size = %d\n",
            SPX_N, SPX_FULL_HEIGHT, SPX_D, SPX_FORS_HEIGHT, SPX_FORS_TREES,
-           SPX_WOTS_W);
+           SPX_WOTS_W, fors_bits, SPX_BYTES);
+    sprintf(filename, "%s", xstr(PARAMS));
 
+    fp = fopen(filename,"w+");
+    fprintf(fp, "n= %d h = %d d= %d b= %d k= %d w= %d tprime= %d size= %d\n",
+           SPX_N, SPX_FULL_HEIGHT, SPX_D, SPX_FORS_HEIGHT, SPX_FORS_TREES,
+           SPX_WOTS_W, fors_bits, SPX_BYTES);
     printf("Running %d iterations.\n", NTESTS);
 
     MEASURT("thash                ", 1, thash(block, block, 1, &ctx, (uint32_t*)addr));
     MEASURE("Generating keypair.. ", 1, crypto_sign_keypair(pk, sk));
+    save_result(fp, "Generate", t, NTESTS);
     MEASURE("  - WOTS pk gen..    ", (1 << SPX_TREE_HEIGHT), wots_gen_pkx1(wots_pk, &ctx, (uint32_t *) addr));
     MEASURE("Signing..            ", 1, crypto_sign(sm, &smlen, m, SPX_MLEN, sk));
+    save_result(fp, "Sign", t, NTESTS);
     MEASURE("  - FORS signing..   ", 1, fors_sign(fors_sig, fors_pk, fors_m, &ctx, (uint32_t *) addr));
+    save_result(fp, "ForsSign", t, NTESTS);
     MEASURE("  - WOTS pk gen..    ", SPX_D * (1 << SPX_TREE_HEIGHT), wots_gen_pkx1(wots_pk, &ctx, (uint32_t *) addr));
     MEASURE("Verifying..          ", 1, crypto_sign_open(mout, &mlen, sm, smlen, pk));
+    save_result(fp, "Verifying", t, NTESTS);
+
+    fprintf(fp, "Size %d\n", SPX_BYTES);
 
     printf("Signature size: %d (%.2f KiB)\n", SPX_BYTES, SPX_BYTES / 1024.0);
     printf("Public key size: %d (%.2f KiB)\n", SPX_PK_BYTES, SPX_PK_BYTES / 1024.0);
     printf("Secret key size: %d (%.2f KiB)\n", SPX_SK_BYTES, SPX_SK_BYTES / 1024.0);
 
+    /* Added sanity checks. */
+    crypto_sign_keypair(pk, sk);
+    printf("testing sign, return value %d\n", crypto_sign(sm, &smlen, m, SPX_MLEN, sk));
+    printf("testing verify, return value %d\n", crypto_sign_open(mout, &mlen, sm, smlen, pk));
+    int test = 0;
+    /* Added sanity checks. Can disable for faster benchmark */
+    if (1)
+    {
+        for(i = 0; i < smlen; i++)
+        {
+            sm[i] = ~sm[i];
+            if (crypto_sign_open(mout, &mlen, sm, smlen, pk) != -1)
+            {
+                printf("signature forged!\n");
+                test += 1;
+            }
+            sm[i] = ~sm[i];
+        }
+        if (test == 0)
+            printf("Signature verification catches change in any byte\n");
+    }
     free(m);
     free(sm);
     free(mout);
+    fclose(fp);
 
     return 0;
 }
