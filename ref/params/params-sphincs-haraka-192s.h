@@ -1,6 +1,6 @@
 #ifndef SPX_PARAMS_H
 #define SPX_PARAMS_H
-
+#error Not implemented for SPHINCS+C
 /* Hash output length in bytes. */
 #define SPX_N 24
 /* Height of the hypertree. */

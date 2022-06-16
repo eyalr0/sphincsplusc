@@ -17,7 +17,8 @@ import shutil
 import os
 import sys
 
-fns = ['shake', 'sha2', 'haraka']
+#fns = ['shake', 'sha2', 'haraka']
+fns = ['shake']
 options = ["f", "s"]
 sizes = [128, 192, 256]
 thashes = ['robust', 'simple']

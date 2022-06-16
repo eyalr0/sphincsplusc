@@ -11,6 +11,7 @@
 #define SPX_ADDR_TYPE_FORSPK 4
 #define SPX_ADDR_TYPE_WOTSPRF 5
 #define SPX_ADDR_TYPE_FORSPRF 6
+#define SPX_ADDR_TYPE_COMPRESS_WOTS 7
 
 void set_layer_addr(uint32_t addr[8], uint32_t layer);
 

@@ -14,7 +14,7 @@
 #include "cycles.h"
 
 #define SPX_MLEN 32
-#define NTESTS 100
+#define NTESTS 1
 
 static void wots_gen_pkx1(unsigned char *pk, const spx_ctx* ctx,
                 uint32_t addr[8]);
@@ -193,7 +193,7 @@ int main()
     printf("testing verify, return value %d\n", crypto_sign_open(mout, &mlen, sm, smlen, pk));
     int test = 0;
     /* Added sanity checks. Can disable for faster benchmark */
-    if (1)
+    if (0)
     {
         for(i = 0; i < smlen; i++)
         {

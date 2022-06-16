@@ -4,14 +4,18 @@
 /* Hash output length in bytes. */
 #define SPX_N 24
 /* Height of the hypertree. */
-#define SPX_FULL_HEIGHT 66
+#define SPX_FULL_HEIGHT 63 
 /* Number of subtree layer. */
-#define SPX_D 22
+#define SPX_D 21 
 /* FORS tree dimensions. */
-#define SPX_FORS_HEIGHT 8
-#define SPX_FORS_TREES 33
+#define SPX_FORS_HEIGHT 9 
+#define SPX_FORS_TREES 30
 /* Winternitz parameter, */
 #define SPX_WOTS_W 16
+
+#define WOTS_ZERO_BITS 0
+
+#define SPX_FORS_ZERO_LAST_BITS 13
 
 /* The hash function is defined by linking a different hash.c file, as opposed
    to setting a #define constant. */
@@ -22,10 +26,16 @@
 /* WOTS parameters. */
 #if SPX_WOTS_W == 256
     #define SPX_WOTS_LOGW 8
+#elif SPX_WOTS_W == 128
+    #define SPX_WOTS_LOGW 7
+#elif SPX_WOTS_W == 64
+    #define SPX_WOTS_LOGW 6
+#elif SPX_WOTS_W == 32
+    #define SPX_WOTS_LOGW 5
 #elif SPX_WOTS_W == 16
     #define SPX_WOTS_LOGW 4
 #else
-    #error SPX_WOTS_W assumed 16 or 256
+    #error SPX_WOTS_W assumed 16 or 32 or 64 or 128 or 256 
 #endif
 
 #define SPX_WOTS_LEN1 (8 * SPX_N / SPX_WOTS_LOGW)
@@ -51,7 +61,7 @@
     #endif
 #endif
 
-#define SPX_WOTS_LEN (SPX_WOTS_LEN1 + SPX_WOTS_LEN2)
+#define SPX_WOTS_LEN (SPX_WOTS_LEN1)
 #define SPX_WOTS_BYTES (SPX_WOTS_LEN * SPX_N)
 #define SPX_WOTS_PK_BYTES SPX_WOTS_BYTES
 
@@ -68,11 +78,15 @@
 #define SPX_FORS_PK_BYTES SPX_N
 
 /* Resulting SPX sizes. */
-#define SPX_BYTES (SPX_N + SPX_FORS_BYTES + SPX_D * SPX_WOTS_BYTES +\
-                   SPX_FULL_HEIGHT * SPX_N)
+#define SPX_BYTES ((SPX_N + SPX_FORS_BYTES + SPX_D * SPX_WOTS_BYTES +\
+                   SPX_FULL_HEIGHT * SPX_N+(SPX_D*COUNTER_SIZE))+COUNTER_SIZE)
 #define SPX_PK_BYTES (2 * SPX_N)
 #define SPX_SK_BYTES (2 * SPX_N + SPX_PK_BYTES)
 
 #include "../shake_offsets.h"
+
+/* custom upgrade parameter definitions */
+#define COUNTER_SIZE 4
+#define WANTED_CHECKSUM ((SPX_WOTS_LEN * (SPX_WOTS_W - 1)) / 2)
 
 #endif

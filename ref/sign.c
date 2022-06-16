@@ -12,6 +12,7 @@
 #include "randombytes.h"
 #include "utils.h"
 #include "merkle.h"
+#include "counters.h"
 
 /*
  * Returns the length of a secret key, in bytes
@@ -108,7 +109,7 @@ int crypto_sign_signature(uint8_t *sig, size_t *siglen,
     uint32_t idx_leaf;
     uint32_t wots_addr[8] = {0};
     uint32_t tree_addr[8] = {0};
-
+    uint32_t counter;
     memcpy(ctx.sk_seed, sk, SPX_N);
     memcpy(ctx.pub_seed, pk, SPX_N);
 
@@ -127,8 +128,12 @@ int crypto_sign_signature(uint8_t *sig, size_t *siglen,
     gen_message_random(sig, sk_prf, optrand, m, mlen, &ctx);
 
     /* Derive the message digest and leaf index from R, PK and M. */
-    hash_message(mhash, &tree, &idx_leaf, sig, pk, m, mlen, &ctx);
-    sig += SPX_N;
+    /*hashes message with counter, so last X bits are zero*/
+    counter = 0;
+    if (hash_message(mhash, &tree, &idx_leaf, sig, pk, m, mlen, &ctx, &counter) == -1)
+        return -1;
+    save_fors_counter(counter,sig);
+    sig += SPX_N + COUNTER_SIZE;
 
     set_tree_addr(wots_addr, tree);
     set_keypair_addr(wots_addr, idx_leaf);
@@ -144,8 +149,11 @@ int crypto_sign_signature(uint8_t *sig, size_t *siglen,
         copy_subtree_addr(wots_addr, tree_addr);
         set_keypair_addr(wots_addr, idx_leaf);
 
-        merkle_sign(sig, root, &ctx, wots_addr, tree_addr, idx_leaf);
-        sig += SPX_WOTS_BYTES + SPX_TREE_HEIGHT * SPX_N;
+        merkle_sign(sig, root, &ctx, wots_addr, tree_addr, idx_leaf, &counter);
+        if (counter == 0)
+            return -1;
+        save_wots_counter(counter, sig);
+        sig += SPX_WOTS_BYTES + SPX_TREE_HEIGHT * SPX_N + COUNTER_SIZE;
 
         /* Update the indices for the next layer. */
         idx_leaf = (tree & ((1 << SPX_TREE_HEIGHT)-1));
@@ -175,6 +183,7 @@ int crypto_sign_verify(const uint8_t *sig, size_t siglen,
     uint32_t wots_addr[8] = {0};
     uint32_t tree_addr[8] = {0};
     uint32_t wots_pk_addr[8] = {0};
+    uint32_t counter;
 
     if (siglen != SPX_BYTES) {
         return -1;
@@ -192,8 +201,12 @@ int crypto_sign_verify(const uint8_t *sig, size_t siglen,
 
     /* Derive the message digest and leaf index from R || PK || M. */
     /* The additional SPX_N is a result of the hash domain separator. */
-    hash_message(mhash, &tree, &idx_leaf, sig, pk, m, mlen, &ctx);
-    sig += SPX_N;
+    counter = get_fors_counter(sig);
+    if (counter == 0)
+        return -1;
+    if (hash_message(mhash, &tree, &idx_leaf, sig, pk, m, mlen, &ctx, &counter) == -1)
+        return -1;
+    sig += SPX_N + COUNTER_SIZE;
 
     /* Layer correctly defaults to 0, so no need to set_layer_addr */
     set_tree_addr(wots_addr, tree);
@@ -215,7 +228,10 @@ int crypto_sign_verify(const uint8_t *sig, size_t siglen,
         /* The WOTS public key is only correct if the signature was correct. */
         /* Initially, root is the FORS pk, but on subsequent iterations it is
            the root of the subtree below the currently processed subtree. */
-        wots_pk_from_sig(wots_pk, sig, root, &ctx, wots_addr);
+        counter = get_wots_counter(sig);
+        if (counter == 0)
+            return -1;
+        wots_pk_from_sig(wots_pk, sig, root, &ctx, wots_addr, counter);
         sig += SPX_WOTS_BYTES;
 
         /* Compute the leaf node using the WOTS public key. */
@@ -224,7 +240,7 @@ int crypto_sign_verify(const uint8_t *sig, size_t siglen,
         /* Compute the root node of this subtree. */
         compute_root(root, leaf, idx_leaf, 0, sig, SPX_TREE_HEIGHT,
                      &ctx, tree_addr);
-        sig += SPX_TREE_HEIGHT * SPX_N;
+        sig += SPX_TREE_HEIGHT * SPX_N  + COUNTER_SIZE;
 
         /* Update the indices for the next layer. */
         idx_leaf = (tree & ((1 << SPX_TREE_HEIGHT)-1));

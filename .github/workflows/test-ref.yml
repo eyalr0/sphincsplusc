@@ -10,9 +10,9 @@ jobs:
     strategy:
       matrix:
         hash:
-          - sha2
+          #- sha2
           - shake
-          - haraka
+          #- haraka
         size:
           - 128
           - 192

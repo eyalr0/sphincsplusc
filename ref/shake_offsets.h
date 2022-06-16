@@ -15,6 +15,7 @@
 #define SPX_OFFSET_HASH_ADDR 31  /* The byte used to specify the hash address (where in the Winternitz chain) */
 #define SPX_OFFSET_TREE_HGT  27  /* The byte used to specify the height of this node in the FORS or Merkle tree */
 #define SPX_OFFSET_TREE_INDEX 28 /* The start of the 4 byte field used to specify the node in the FORS or Merkle tree */
+#define SPX_OFFSER_COUNTER 24 /* The start of the 4 byte field used to specify the counter for the WOTS signature */
 
 #define SPX_SHAKE 1
 
