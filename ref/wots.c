@@ -43,24 +43,7 @@ static void gen_chain(unsigned char *out, const unsigned char *in,
 static void base_w(unsigned int *output, const int out_len,
                    const unsigned char *input)
 {
-#if SPX_WOTS_W == 16 || SPX_WOTS_W == 256
-    int in = 0;
-    int out = 0;
-    unsigned char total;
-    int bits = 0;
-    int consumed;
-
-    for (consumed = 0; consumed < out_len; consumed++) {
-        if (bits == 0) {
-            total = input[in];
-            in++;
-            bits += 8;
-        }
-        bits -= SPX_WOTS_LOGW;
-        output[out] = (total >> bits) & (SPX_WOTS_W - 1);
-        out++;
-    }
-#else
+    /* new code to support w that are not 16 or 256, also seems to be faster */
     int i, j;
     unsigned int offset = 0;
 
@@ -71,7 +54,6 @@ static void base_w(unsigned int *output, const int out_len,
             offset++;
         }
     }
-#endif
 }
 
 /* Computes the WOTS+C checksum over a message (in base_w).  concatenating checksum to lengths removed! */
